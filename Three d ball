@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hand Controlled 3D Ball</title>
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    video { display: none; }
+  </style>
+</head>
+<body>
+
+<video id="video" autoplay></video>
+
+<script>
+  // THREE.JS SETUP
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // BALL
+  const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+  const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const ball = new THREE.Mesh(geometry, material);
+  scene.add(ball);
+
+  // LIGHT
+  const light = new THREE.PointLight(0xffffff, 1);
+  light.position.set(5, 5, 5);
+  scene.add(light);
+
+  camera.position.z = 5;
+
+  // MEDIAPIPE HANDS
+  const hands = new Hands({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
+  });
+
+  hands.onResults(results => {
+    if (results.multiHandLandmarks.length > 0) {
+      const hand = results.multiHandLandmarks[0];
+      const x = (hand[9].x - 0.5) * 6;
+      const y = -(hand[9].y - 0.5) * 6;
+
+      ball.position.x = x;
+      ball.position.y = y;
+    }
+  });
+
+  // CAMERA
+  const videoElement = document.getElementById("video");
+  const cam = new Camera(videoElement, {
+    onFrame: async () => {
+      await hands.send({ image: videoElement });
+    },
+    width: 640,
+    height: 480
+  });
+  cam.start();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+
+</body>
+</html>
